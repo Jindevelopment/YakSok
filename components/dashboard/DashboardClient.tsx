@@ -1,12 +1,14 @@
 'use client'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { CheckCircle2, Circle, Sun, Sunset, Moon, Coffee } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import type { Schedule, MedicationLog, TimeSlot } from '@/types'
-import clsx from 'clsx'
+import { cn } from '@/lib/utils'
+
+const supabase = createClient()
 
 const TIME_SLOTS: { slot: TimeSlot; label: string; icon: React.ElementType; color: string }[] = [
   { slot: 'morning',  label: '아침',   icon: Sun,     color: 'text-amber-500 bg-amber-50' },
@@ -24,23 +26,37 @@ interface Props {
 }
 
 export default function DashboardClient({ schedules, logs: initialLogs, userName, today, userId }: Props) {
-  const supabase = createClient()
   const [logs, setLogs] = useState(initialLogs)
   const [isPending, startTransition] = useTransition()
 
-  const isLogTaken = (scheduleId: string, slot: TimeSlot) =>
-    logs.some(l => l.schedule_id === scheduleId && l.time_slot === slot && l.taken)
+  const logMap = useMemo(() => {
+    const map = new Map<string, MedicationLog>()
+    for (const l of logs) {
+      map.set(`${l.schedule_id}_${l.time_slot}`, l)
+    }
+    return map
+  }, [logs])
+
+  const isLogTaken = useCallback(
+    (scheduleId: string, slot: TimeSlot) => {
+      const log = logMap.get(`${scheduleId}_${slot}`)
+      return log?.taken ?? false
+    },
+    [logMap]
+  )
 
   const toggleLog = (scheduleId: string, medicationId: string, slot: TimeSlot) => {
     startTransition(async () => {
-      const existing = logs.find(l => l.schedule_id === scheduleId && l.time_slot === slot)
+      const existing = logMap.get(`${scheduleId}_${slot}`)
       if (existing) {
         const newTaken = !existing.taken
         const { error } = await supabase
           .from('medication_logs')
           .update({ taken: newTaken, taken_at: newTaken ? new Date().toISOString() : null })
           .eq('id', existing.id)
-        if (!error) {
+        if (error) {
+          toast.error('복약 상태 변경에 실패했습니다.')
+        } else {
           setLogs(prev => prev.map(l => l.id === existing.id ? { ...l, taken: newTaken } : l))
           toast.success(newTaken ? '복약 완료!' : '복약 취소')
         }
@@ -50,7 +66,9 @@ export default function DashboardClient({ schedules, logs: initialLogs, userName
           .insert({ user_id: userId, schedule_id: scheduleId, medication_id: medicationId,
             log_date: today, time_slot: slot, taken: true, taken_at: new Date().toISOString() })
           .select().single()
-        if (!error && data) {
+        if (error) {
+          toast.error('복약 기록에 실패했습니다.')
+        } else if (data) {
           setLogs(prev => [...prev, data])
           toast.success('복약 완료!')
         }
@@ -58,7 +76,6 @@ export default function DashboardClient({ schedules, logs: initialLogs, userName
     })
   }
 
-  // 완료율 계산
   const totalDoses = schedules.reduce((sum, s) => sum + s.time_slots.length, 0)
   const takenDoses = logs.filter(l => l.taken).length
   const rate = totalDoses > 0 ? Math.round((takenDoses / totalDoses) * 100) : 0
@@ -83,13 +100,13 @@ export default function DashboardClient({ schedules, logs: initialLogs, userName
             <p className="text-4xl font-bold">{rate}%</p>
             <p className="text-mint-100 text-sm mt-1">{takenDoses} / {totalDoses} 회 완료</p>
           </div>
-          <div className="w-20 h-20 relative">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+          <div className="w-20 h-20 relative" role="img" aria-label={`복약 완료율 ${rate}%`}>
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
               <circle cx="18" cy="18" r="15.9" fill="none" stroke="white" strokeWidth="3"
                 strokeDasharray={`${rate} ${100 - rate}`} strokeLinecap="round" />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{rate}%</span>
+            <span className="absolute inset-0 flex items-center justify-center text-sm font-bold" aria-hidden="true">{rate}%</span>
           </div>
         </div>
         {rate === 100 && (
@@ -102,7 +119,8 @@ export default function DashboardClient({ schedules, logs: initialLogs, userName
       {/* 시간대별 복약 목록 */}
       {schedules.length === 0 ? (
         <div className="card text-center py-12">
-          <p className="text-sage-400 text-lg mb-2">등록된 복약 일정이 없습니다</p>
+          <p className="text-4xl mb-3" role="img" aria-label="약">💊</p>
+          <p className="text-sage-500 font-medium mb-1">오늘 복용할 약이 없습니다</p>
           <p className="text-sage-400 text-sm">복약 일정 메뉴에서 약을 추가해 주세요</p>
         </div>
       ) : (
@@ -115,7 +133,7 @@ export default function DashboardClient({ schedules, logs: initialLogs, userName
             <div key={slot} className="card">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
+                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <span className="font-semibold text-sage-800">{label}</span>
@@ -131,17 +149,19 @@ export default function DashboardClient({ schedules, logs: initialLogs, userName
                     <button key={s.id}
                       onClick={() => toggleLog(s.id, s.medication_id, slot)}
                       disabled={isPending}
-                      className={clsx(
+                      aria-label={`${s.medication?.item_name} ${taken ? '복약 완료 — 취소하려면 탭하세요' : '복약하기'}`}
+                      aria-pressed={taken}
+                      className={cn(
                         'w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left',
                         taken
                           ? 'border-mint-200 bg-mint-50'
                           : 'border-sage-100 bg-white hover:border-sage-200 hover:bg-sage-50'
                       )}>
                       {taken
-                        ? <CheckCircle2 className="w-6 h-6 text-mint-500 shrink-0" />
-                        : <Circle className="w-6 h-6 text-sage-300 shrink-0" />}
+                        ? <CheckCircle2 className="w-6 h-6 text-mint-500 shrink-0" aria-hidden="true" />
+                        : <Circle className="w-6 h-6 text-sage-300 shrink-0" aria-hidden="true" />}
                       <div className="flex-1 min-w-0">
-                        <p className={clsx('font-medium text-sm truncate', taken ? 'text-mint-700 line-through' : 'text-sage-800')}>
+                        <p className={cn('font-medium text-sm truncate', taken ? 'text-mint-700 line-through' : 'text-sage-800')}>
                           {s.medication?.item_name}
                         </p>
                         {s.dosage && <p className="text-xs text-sage-400 mt-0.5">{s.dosage}</p>}

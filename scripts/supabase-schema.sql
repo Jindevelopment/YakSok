@@ -109,9 +109,11 @@ create policy "본인 채팅 조회" on public.chat_histories for select using (
 create policy "본인 채팅 생성" on public.chat_histories for insert with check (auth.uid() = user_id);
 create policy "본인 채팅 수정" on public.chat_histories for update using (auth.uid() = user_id);
 
--- medications & drug_interactions: 모두 읽기 가능
+-- medications & drug_interactions: 모두 읽기 가능, 인증 사용자 캐시 저장 가능
 alter table public.medications enable row level security;
 create policy "의약품 전체 조회" on public.medications for select using (true);
+create policy "의약품 캐시 저장" on public.medications for insert with check (true);
+create policy "의약품 캐시 갱신" on public.medications for update using (true);
 
 alter table public.drug_interactions enable row level security;
 create policy "상호작용 전체 조회" on public.drug_interactions for select using (true);

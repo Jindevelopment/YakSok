@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
-import { Loader2, Camera, Plus, X } from 'lucide-react'
+import { Loader2, Camera, Plus, X, ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import DatePicker from '@/components/ui/DatePicker'
 
 const CONDITIONS = [
   '고혈압', '당뇨', '고지혈증', '심장질환', '신장질환',
@@ -72,7 +73,12 @@ export default function ProfilePage() {
       .upload(path, file, { upsert: true })
 
     if (uploadError) {
-      toast.error('사진 업로드에 실패했습니다')
+      console.error('Avatar upload error:', uploadError)
+      if (uploadError.message.includes('Bucket not found')) {
+        toast.error('스토리지 버킷이 없습니다. Supabase 대시보드에서 avatars 버킷을 생성해주세요.')
+      } else {
+        toast.error(`사진 업로드 실패: ${uploadError.message}`)
+      }
       setUploading(false)
       return
     }
@@ -80,7 +86,8 @@ export default function ProfilePage() {
     const { data: { publicUrl } } = supabase.storage
       .from('avatars').getPublicUrl(path)
 
-    setAvatarUrl(publicUrl)
+    const urlWithCache = `${publicUrl}?t=${Date.now()}`
+    setAvatarUrl(urlWithCache)
     setUploading(false)
     toast.success('사진이 업로드됐습니다')
   }
@@ -105,7 +112,7 @@ export default function ProfilePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { error } = await supabase.from('profiles').update({
+    const { data: updated, error } = await supabase.from('profiles').update({
       name: name.trim(),
       birth_date:  birthDate || null,
       gender:      gender || null,
@@ -114,10 +121,29 @@ export default function ProfilePage() {
       conditions:  conditions,
       avatar_url:  avatarUrl,
       updated_at:  new Date().toISOString(),
-    }).eq('id', user.id)
+    }).eq('id', user.id).select()
 
     if (error) {
-      toast.error('저장에 실패했습니다')
+      console.error('Profile save error:', error)
+      toast.error(`저장 실패: ${error.message}`)
+    } else if (!updated || updated.length === 0) {
+      const { error: insertError } = await supabase.from('profiles').insert({
+        id:         user.id,
+        email:      user.email ?? '',
+        name:       name.trim(),
+        birth_date: birthDate || null,
+        gender:     gender || null,
+        height:     height ? parseFloat(height) : null,
+        weight:     weight ? parseFloat(weight) : null,
+        conditions: conditions,
+        avatar_url: avatarUrl,
+      })
+      if (insertError) {
+        console.error('Profile insert error:', insertError)
+        toast.error(`저장 실패: ${insertError.message}`)
+      } else {
+        toast.success('프로필이 저장됐습니다!')
+      }
     } else {
       toast.success('프로필이 저장됐습니다!')
     }
@@ -135,6 +161,13 @@ export default function ProfilePage() {
   return (
     <div className="max-w-lg mx-auto space-y-5 pb-10">
       <div>
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1.5 text-sage-500 hover:text-sage-800 transition-colors mb-3 -ml-1"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="text-sm">뒤로</span>
+        </button>
         <h1 className="text-2xl font-bold text-sage-900">프로필</h1>
         <p className="text-sm text-sage-500 mt-1">개인 정보를 관리하세요</p>
       </div>
@@ -176,8 +209,7 @@ export default function ProfilePage() {
 
         <div>
           <label className="block text-sm font-medium text-sage-700 mb-1.5">생년월일</label>
-          <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)}
-            className="input-base" />
+          <DatePicker value={birthDate} onChange={setBirthDate} placeholder="생년월일을 선택하세요" />
         </div>
 
         <div>

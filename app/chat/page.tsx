@@ -4,11 +4,19 @@ import { Send, Loader2, Bot, User, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 
-interface Message { role: 'user' | 'assistant'; content: string }
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
+function createMessage(role: Message['role'], content: string): Message {
+  return { id: crypto.randomUUID(), role, content }
+}
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: '안녕하세요! 저는 약속의 AI 상담 도우미입니다 💊\n\n복약 방법, 약물 부작용, 의약품 정보 등 궁금한 점을 자유롭게 물어보세요.\n\n⚠️ 본 서비스는 참고용이며 의료 진단을 대체하지 않습니다.' }
+    createMessage('assistant', '안녕하세요! 저는 약속의 AI 상담 도우미입니다 💊\n\n복약 방법, 약물 부작용, 의약품 정보 등 궁금한 점을 자유롭게 물어보세요.\n\n⚠️ 본 서비스는 참고용이며 의료 진단을 대체하지 않습니다.')
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,20 +30,22 @@ export default function ChatPage() {
     const text = input.trim()
     if (!text || loading) return
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: text }])
+    const userMessage = createMessage('user', text)
+    setMessages(prev => [...prev, userMessage])
     setLoading(true)
 
     try {
+      const apiMessages = [...messages, userMessage].map(({ role, content }) => ({ role, content }))
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, { role: 'user', content: text }] }),
+        body: JSON.stringify({ messages: apiMessages }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply ?? '답변을 생성하지 못했습니다.' }])
+      setMessages(prev => [...prev, createMessage('assistant', data.reply ?? '답변을 생성하지 못했습니다.')])
     } catch {
-      toast.error('오류가 발생했습니다')
-      setMessages(prev => [...prev, { role: 'assistant', content: '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.' }])
+      toast.error('네트워크 오류가 발생했습니다. 연결 상태를 확인해 주세요.')
+      setMessages(prev => [...prev, createMessage('assistant', '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')])
     }
     setLoading(false)
   }
@@ -51,8 +61,8 @@ export default function ChatPage() {
 
       {/* 메시지 영역 */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.map((m, i) => (
-          <div key={i} className={clsx('flex gap-3', m.role === 'user' && 'flex-row-reverse')}>
+        {messages.map((m) => (
+          <div key={m.id} className={clsx('flex gap-3', m.role === 'user' && 'flex-row-reverse')}>
             <div className={clsx(
               'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
               m.role === 'assistant' ? 'bg-mint-100' : 'bg-sage-200'
@@ -105,14 +115,23 @@ export default function ChatPage() {
       </div>
 
       {/* 입력창 */}
-      <div className="flex gap-2">
-        <input value={input} onChange={e => setInput(e.target.value)}
+      <div className="flex gap-2" role="form" aria-label="메시지 입력">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
           placeholder="약에 대해 궁금한 점을 입력하세요..."
-          className="input-base flex-1" disabled={loading} />
-        <button onClick={send} disabled={loading || !input.trim()}
-          className="btn-primary aspect-square flex items-center justify-center">
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+          aria-label="메시지 입력"
+          className="input-base flex-1"
+          disabled={loading} />
+        <button
+          onClick={send}
+          disabled={loading || !input.trim()}
+          aria-label={loading ? '전송 중' : '메시지 전송'}
+          className="btn-primary min-w-[44px] min-h-[44px] flex items-center justify-center">
+          {loading
+            ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+            : <Send className="w-5 h-5" aria-hidden="true" />}
         </button>
       </div>
     </div>

@@ -23,10 +23,8 @@ Copy `.env.local.example` to `.env.local` and fill in:
 |----------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase client |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase admin |
-| `ANTHROPIC_API_KEY` | Claude Vision API |
+| `GEMINI_API_KEY` | Gemini 2.0 Flash (챗봇 + 이미지 인식) |
 | `MFDS_API_KEY` / `MFDS_EASY_API_KEY` | 식약처 medication data |
-| `GOOGLE_VISION_API_KEY` | Image OCR |
-| `GROQ_API_KEY` | Llama chatbot |
 
 Apply DB schema by running `supabase-schema.sql` in the Supabase Dashboard SQL editor.
 

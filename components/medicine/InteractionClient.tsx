@@ -12,7 +12,7 @@ const SEVERITY_CONFIG: Record<Severity, { label: string; icon: React.ElementType
 
 export default function InteractionClient({ medications, interactions }: {
   medications: Medication[]
-  interactions: any[]
+  interactions: DrugInteraction[]
 }) {
   const hasWarning = interactions.length > 0
   const highRisk = interactions.filter(i => i.severity === 'contraindicated' || i.severity === 'high')

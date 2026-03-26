@@ -6,6 +6,23 @@ import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
 
+function getKoreanAuthError(message: string): string {
+  const errorMap: Record<string, string> = {
+    'User already registered': '이미 가입된 이메일 주소입니다. 로그인을 시도해 주세요.',
+    'Email already in use': '이미 사용 중인 이메일 주소입니다.',
+    'Email not confirmed': '이메일 인증이 완료되지 않았습니다. 받으신 인증 메일을 확인해 주세요.',
+    'Invalid email': '올바른 이메일 주소 형식이 아닙니다.',
+    'Password should be at least': '비밀번호는 8자 이상이어야 합니다.',
+    'Signup is disabled': '현재 회원가입이 제한되어 있습니다. 잠시 후 다시 시도해 주세요.',
+    'Unable to validate email address': '이메일 주소를 확인할 수 없습니다. 다시 입력해 주세요.',
+    'Too many requests': '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+  }
+  for (const [key, korean] of Object.entries(errorMap)) {
+    if (message.includes(key)) return korean
+  }
+  return '회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -26,7 +43,7 @@ export default function SignupPage() {
       options: { data: { full_name: name } },
     })
     if (error) {
-      toast.error(error.message)
+      toast.error(getKoreanAuthError(error.message))
     } else {
       toast.success('회원가입 완료! 이메일을 확인해 주세요')
       router.push('/auth/login')

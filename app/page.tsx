@@ -88,7 +88,7 @@ export default function HomePage() {
       </section>
 
       <footer className="text-center pb-10 text-sm text-sage-400">
-        © 2025 약속 · 본 서비스는 참고용이며 의료 진단을 대체하지 않습니다
+        © 2026 약속 · 본 서비스는 참고용이며 의료 진단을 대체하지 않습니다
       </footer>
     </main>
   )

@@ -27,7 +27,7 @@ export default async function SchedulePage() {
         </Link>
       </div>
 
-      <ScheduleList schedules={schedules ?? []} userId={user.id} />
+      <ScheduleList schedules={schedules ?? []} />
     </div>
   )
 }

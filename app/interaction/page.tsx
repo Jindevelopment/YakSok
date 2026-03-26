@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import InteractionClient from '@/components/medicine/InteractionClient'
+import type { Medication, DrugInteraction } from '@/types'
 
 export default async function InteractionPage() {
   const supabase = createClient()
@@ -15,8 +16,7 @@ export default async function InteractionPage() {
 
   const medIds = schedules?.map(s => s.medication_id) ?? []
 
-  // 2개 이상일 때 상호작용 조회
-  let interactions: any[] = []
+  let interactions: DrugInteraction[] = []
   if (medIds.length >= 2) {
     const { data } = await supabase
       .from('drug_interactions')
@@ -28,12 +28,16 @@ export default async function InteractionPage() {
           )
         ).join(',')
       )
-    interactions = data ?? []
+    interactions = (data ?? []) as DrugInteraction[]
   }
+
+  const medications: Medication[] = (schedules ?? [])
+    .map(s => s.medication as unknown as Medication)
+    .filter(Boolean)
 
   return (
     <InteractionClient
-      medications={schedules?.map(s => s.medication as any) ?? []}
+      medications={medications}
       interactions={interactions}
     />
   )

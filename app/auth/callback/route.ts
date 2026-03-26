@@ -4,7 +4,10 @@ import { NextResponse } from 'next/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
+  const nextParam = searchParams.get('next') ?? '/dashboard'
+
+  // BUG-06: Open Redirect 방지 — /로 시작하는 상대경로만 허용
+  const next = nextParam.startsWith('/') ? nextParam : '/dashboard'
 
   if (code) {
     const supabase = createClient()

@@ -83,9 +83,14 @@ export default function LoginPage() {
             <input type={showPw ? 'text' : 'password'} value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="비밀번호 입력" required className="input-base pr-11" />
-            <button type="button" onClick={() => setShowPw(!showPw)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600">
-              {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            <button
+              type="button"
+              onClick={() => setShowPw(!showPw)}
+              aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600 p-1 min-w-[36px] min-h-[36px] flex items-center justify-center">
+              {showPw
+                ? <EyeOff className="w-5 h-5" aria-hidden="true" />
+                : <Eye className="w-5 h-5" aria-hidden="true" />}
             </button>
           </div>
         </div>

@@ -34,8 +34,8 @@ yarn-error.log*
 .claude/
 .mcp.json
 
-# api 연습 파일 (API 키 포함)
-api불러오기_연습/
+# playwright mcp logs
+.playwright-mcp/
 
 # typescript
 *.tsbuildinfo
