@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import {
   LayoutDashboard, Search, CalendarDays, Pill,
-  ShieldAlert, Bot, LogOut, Menu, Loader2, UserCircle
+  ShieldAlert, Bot, LogOut, Menu, Loader2, UserCircle, MapPin
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/calendar',     label: '복약 달력',     icon: CalendarDays },
   { href: '/interaction',  label: '약물 상호작용', icon: ShieldAlert },
   { href: '/chat',         label: 'AI 상담',       icon: Bot },
+  { href: '/pharmacy-map', label: '근처 약국',     icon: MapPin },
   { href: '/profile',      label: '프로필',        icon: UserCircle },
 ]
 
