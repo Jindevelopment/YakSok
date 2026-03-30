@@ -9,7 +9,9 @@ const nextConfig = {
     ],
     formats: ['image/avif', 'image/webp'],
   },
-  optimizePackageImports: ['lucide-react', 'date-fns'],
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'date-fns'],
+  },
 }
 
 module.exports = nextConfig
