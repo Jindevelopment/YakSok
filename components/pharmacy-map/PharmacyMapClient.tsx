@@ -248,29 +248,31 @@ export default function PharmacyMapClient() {
 
     if (window.naver?.maps) {
       getUserLocation()
-      return
+    } else {
+      const existing = document.querySelector(
+        'script[src^="https://openapi.map.naver.com"]'
+      ) as HTMLScriptElement | null
+
+      if (existing) {
+        existing.addEventListener('load', getUserLocation)
+        existing.addEventListener('error', () =>
+          setMapError('네이버 지도 스크립트를 불러오지 못했습니다. API 키를 확인해주세요.')
+        )
+      } else {
+        const script = document.createElement('script')
+        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`
+        script.async = true
+        script.onload = () => getUserLocation()
+        script.onerror = () => {
+          setMapError('네이버 지도 스크립트를 불러오지 못했습니다. API 키를 확인해주세요.')
+        }
+        document.head.appendChild(script)
+      }
     }
 
-    const existing = document.querySelector(
-      'script[src^="https://openapi.map.naver.com"]'
-    ) as HTMLScriptElement | null
-
-    if (existing) {
-      existing.addEventListener('load', getUserLocation)
-      existing.addEventListener('error', () =>
-        setMapError('네이버 지도 스크립트를 불러오지 못했습니다. API 키를 확인해주세요.')
-      )
-      return
+    return () => {
+      mapRef.current = null
     }
-
-    const script = document.createElement('script')
-    script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`
-    script.async = true
-    script.onload = () => getUserLocation()
-    script.onerror = () => {
-      setMapError('네이버 지도 스크립트를 불러오지 못했습니다. API 키를 확인해주세요.')
-    }
-    document.head.appendChild(script)
   }, [clientId, getUserLocation])
 
   const handleGoToMyLocation = () => {
