@@ -102,12 +102,17 @@ export default function PharmacyMapClient() {
 
     items.forEach((pharmacy, idx) => {
       const position = new window.naver.maps.LatLng(pharmacy.lat, pharmacy.lng)
+      const pillIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>`
       const marker = new window.naver.maps.Marker({
         position,
         map: mapRef.current,
         icon: {
-          content: `<div style="background:#22c77a;color:white;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.25);white-space:nowrap;">${pharmacy.name}</div>`,
-          anchor: new window.naver.maps.Point(21, 12),
+          content: `
+            <div style="width:40px;height:40px;background:#22c77a;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2.5px solid white;cursor:pointer">
+              ${pillIcon}
+            </div>
+          `,
+          anchor: new window.naver.maps.Point(20, 20),
         },
         title: pharmacy.name,
         zIndex: 100,
@@ -233,13 +238,19 @@ export default function PharmacyMapClient() {
         setUserCoords({ lat, lng })
         initMapAndSearch(lat, lng)
       },
-      () => {
+      (err) => {
+        const msg =
+          err.code === err.PERMISSION_DENIED
+            ? '위치 권한이 거부되었습니다.'
+            : err.code === err.TIMEOUT
+            ? '위치 정보 요청 시간이 초과되었습니다.'
+            : '위치 정보를 가져올 수 없습니다.'
         userCoordsRef.current = { lat: FALLBACK_LAT, lng: FALLBACK_LNG }
         setUserCoords({ lat: FALLBACK_LAT, lng: FALLBACK_LNG })
-        setLocationError('위치 권한이 거부되었습니다. 서울 시청을 기준으로 표시합니다.')
+        setLocationError(`${msg} 서울 시청을 기준으로 표시합니다.`)
         initMapAndSearch(FALLBACK_LAT, FALLBACK_LNG)
       },
-      { timeout: 10_000, maximumAge: 60_000 }
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
     )
   }, [initMapAndSearch])
 
@@ -254,10 +265,18 @@ export default function PharmacyMapClient() {
       ) as HTMLScriptElement | null
 
       if (existing) {
-        existing.addEventListener('load', getUserLocation)
+        // 스크립트가 이미 로드 완료된 경우 load 이벤트가 재발화되지 않으므로 polling으로 대기
+        const waitForNaver = () => {
+          if (window.naver?.maps) {
+            getUserLocation()
+          } else {
+            setTimeout(waitForNaver, 100)
+          }
+        }
         existing.addEventListener('error', () =>
           setMapError('네이버 지도 스크립트를 불러오지 못했습니다. API 키를 확인해주세요.')
         )
+        waitForNaver()
       } else {
         const script = document.createElement('script')
         script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`
