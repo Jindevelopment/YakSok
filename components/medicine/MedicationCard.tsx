@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Plus, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, Loader2, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import type { Medication } from '@/types'
 
@@ -22,6 +22,7 @@ export default function MedicationCard({ medication: initialMed, showAddButton }
   const [expanded, setExpanded] = useState(false)
   const [medication, setMedication] = useState<Medication>(initialMed)
   const [detailState, setDetailState] = useState<'idle' | 'loading' | 'done' | 'none'>('idle')
+  const [aiGenerated, setAiGenerated] = useState(false)
 
   const hasShapeInfo =
     medication.drug_shape || medication.color_class1 || medication.form_code_name ||
@@ -37,6 +38,7 @@ export default function MedicationCard({ medication: initialMed, showAddButton }
         const res = await fetch(`/api/medications/detail?id=${medication.id}`)
         const data = await res.json()
         if (data.medication) setMedication(data.medication)
+        setAiGenerated(data.aiGenerated ?? false)
         setDetailState(data.hasDetail ? 'done' : 'none')
       } catch {
         setDetailState('none')
@@ -117,15 +119,30 @@ export default function MedicationCard({ medication: initialMed, showAddButton }
             <p className="text-xs text-sage-400 py-2">이 약품의 상세 정보는 제공되지 않습니다.</p>
           )}
 
+          {aiGenerated && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-50 border border-violet-200 rounded-lg">
+              <Sparkles className="w-3 h-3 text-violet-500 shrink-0" />
+              <p className="text-xs text-violet-600">AI가 생성한 요약 정보입니다. 참고용으로만 사용하세요.</p>
+            </div>
+          )}
+
           {[
-            { label: '효능·효과', content: medication.efficacy },
-            { label: '용법·용량', content: medication.usage_info },
-            { label: '주의사항', content: medication.caution },
-            { label: '부작용', content: medication.side_effect },
-            { label: '상호작용', content: medication.interaction_info },
-          ].filter(i => i.content).map(({ label, content }) => (
+            { label: '효능·효과', content: medication.efficacy, ai: aiGenerated },
+            { label: '용법·용량', content: medication.usage_info, ai: false },
+            { label: '주의사항', content: medication.caution, ai: false },
+            { label: '부작용', content: medication.side_effect, ai: aiGenerated },
+            { label: '상호작용', content: medication.interaction_info, ai: false },
+          ].filter(i => i.content).map(({ label, content, ai }) => (
             <div key={label}>
-              <p className="text-xs font-semibold text-sage-700 mb-1">{label}</p>
+              <p className="text-xs font-semibold text-sage-700 mb-1 flex items-center gap-1.5">
+                {label}
+                {ai && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-violet-600 bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-full">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    AI 요약
+                  </span>
+                )}
+              </p>
               <p className="text-xs text-sage-600 leading-relaxed whitespace-pre-line">{content}</p>
             </div>
           ))}
