@@ -1,4 +1,5 @@
 'use client'
+export const dynamic = 'force-dynamic'
 import { useState, useRef, useEffect } from 'react'
 import { Search, Camera, Upload, Loader2, X, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
