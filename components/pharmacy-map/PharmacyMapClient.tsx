@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { MapPin, Navigation, RefreshCw, AlertCircle, Phone, Search, ExternalLink } from 'lucide-react'
+import { MapPin, Navigation, RefreshCw, AlertCircle, Phone, Search, ExternalLink, Car, Footprints } from 'lucide-react'
 
 interface Pharmacy {
   name: string
@@ -21,6 +21,24 @@ function formatDistance(m: number | null): string {
   return `${(m / 1000).toFixed(1)}km`
 }
 
+type TravelMode = 'walking' | 'driving'
+
+function getEstimatedTravel(distance: number | null, mode: TravelMode) {
+  if (distance === null) return null
+  const routeDistance = Math.round(distance * (mode === 'walking' ? 1.25 : 1.35))
+  const metersPerMinute = mode === 'walking' ? 75 : 350
+  return {
+    distance: routeDistance,
+    minutes: Math.max(1, Math.round(routeDistance / metersPerMinute)),
+  }
+}
+
+function formatTravel(distance: number | null, mode: TravelMode): string {
+  const travel = getEstimatedTravel(distance, mode)
+  if (!travel) return ''
+  return `${formatDistance(travel.distance)} · 약 ${travel.minutes}분`
+}
+
 declare global {
   interface Window {
     naver: any
@@ -38,6 +56,7 @@ export default function PharmacyMapClient() {
   const userMarkerRef = useRef<any>(null)
   const searchMarkerRef = useRef<any>(null)
   const userCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
+  const travelModeRef = useRef<TravelMode>('walking')
 
   const [mapReady, setMapReady] = useState(false)
   const [mapError, setMapError] = useState<string | null>(null)
@@ -49,6 +68,7 @@ export default function PharmacyMapClient() {
   const [searchQuery, setSearchQuery] = useState('')
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
   const [mapMoved, setMapMoved] = useState(false)
+  const [travelMode, setTravelMode] = useState<TravelMode>('walking')
 
   const clientId = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID
 
@@ -64,7 +84,9 @@ export default function PharmacyMapClient() {
     if (!mapRef.current || !window.naver?.maps) return
     infoWindowRef.current?.close()
 
-    const distText = pharmacy.distance !== null ? `<span style="margin-left:6px;font-size:11px;color:#22c77a;font-weight:600">${formatDistance(pharmacy.distance)}</span>` : ''
+    const currentMode = travelModeRef.current
+    const travelText = formatTravel(pharmacy.distance, currentMode)
+    const distText = travelText ? `<span style="margin-left:6px;font-size:11px;color:#22c77a;font-weight:600">${currentMode === 'walking' ? '도보' : '차량'} ${travelText}</span>` : ''
     const getLinkLabel = (url: string) => {
       try {
         const host = new URL(url).hostname
@@ -286,6 +308,11 @@ export default function PharmacyMapClient() {
     searchPharmacies(center.lat(), center.lng())
   }
 
+  const handleTravelModeChange = (mode: TravelMode) => {
+    travelModeRef.current = mode
+    setTravelMode(mode)
+  }
+
   const handleLocationSearch = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!searchQuery.trim() || !mapRef.current || !window.naver?.maps) return
@@ -394,6 +421,29 @@ export default function PharmacyMapClient() {
         </button>
       </form>
 
+      <div className="flex gap-1 p-1 bg-sage-100 rounded-xl w-fit">
+        <button
+          type="button"
+          onClick={() => handleTravelModeChange('walking')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            travelMode === 'walking' ? 'bg-white text-sage-900 shadow-sm' : 'text-sage-500 hover:text-sage-700'
+          }`}
+        >
+          <Footprints className="w-4 h-4" />
+          도보
+        </button>
+        <button
+          type="button"
+          onClick={() => handleTravelModeChange('driving')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            travelMode === 'driving' ? 'bg-white text-sage-900 shadow-sm' : 'text-sage-500 hover:text-sage-700'
+          }`}
+        >
+          <Car className="w-4 h-4" />
+          차량
+        </button>
+      </div>
+
       {geocodeError && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -468,10 +518,15 @@ export default function PharmacyMapClient() {
                       <p className="text-sm font-semibold text-sage-900 truncate">{pharmacy.name}</p>
                       {pharmacy.distance !== null && (
                         <span className="shrink-0 text-xs font-semibold text-mint-600 bg-mint-50 px-1.5 py-0.5 rounded-full">
-                          {formatDistance(pharmacy.distance)}
+                          {formatDistance(getEstimatedTravel(pharmacy.distance, travelMode)?.distance ?? pharmacy.distance)}
                         </span>
                       )}
                     </div>
+                    {pharmacy.distance !== null && (
+                      <p className="text-xs text-mint-600 mt-0.5 font-medium">
+                        {travelMode === 'walking' ? '도보' : '차량'} 예상 · 약 {getEstimatedTravel(pharmacy.distance, travelMode)?.minutes}분
+                      </p>
+                    )}
                     {pharmacy.category && (
                       <p className="text-xs text-sage-400 mt-0.5">{pharmacy.category}</p>
                     )}
